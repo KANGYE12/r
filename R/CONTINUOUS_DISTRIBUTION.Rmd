@@ -1,0 +1,146 @@
+---
+title: "Exam02_Practice --> Continuous distribution"
+output: html_document
+date: "2025-12-09"
+---
+
+```{r}
+###########################################################
+# UNIFORM DISTRIBUTION (continuous)
+###########################################################
+uniform_pdf <- function(x, a, b) {
+  if (a >= b) stop("a must be < b")
+  dunif(x, min = a, max = b)
+}
+
+uniform_cdf <- function(x, a, b) {
+  if (a >= b) stop("a must be < b")
+  punif(x, min = a, max = b)
+}
+
+uniform_rnd <- function(n, a, b) {
+  if (a >= b) stop("a must be < b")
+  runif(n, min = a, max = b)
+}
+
+uniform_moments <- function(a, b) {
+  if (a >= b) stop("a must be < b")
+  list(
+    mean = (a + b) / 2,
+    variance = (b - a)^2 / 12
+  )
+}
+
+```
+
+```{r}
+
+###############################################################
+# NORMAL DISTRIBUTION: X ~ N(mean, sd)
+###############################################################
+
+normal_pdf <- function(x, mean, sd) {
+  dnorm(x, mean = mean, sd = sd)
+}
+
+normal_cdf <- function(x, mean, sd) {
+  pnorm(x, mean = mean, sd = sd)
+}
+
+normal_rnd <- function(n, mean, sd) {
+  rnorm(n, mean = mean, sd = sd)
+}
+
+normal_moments <- function(mean, sd) {
+  list(
+    mean = mean,
+    variance = sd^2
+  )
+}
+
+```
+
+
+```{r}
+###########################################
+#        T-STUDENT DISTRIBUTION
+###########################################
+
+# PDF
+t_pdf <- function(x, df) {
+  dt(x, df = df)
+}
+
+# CDF (P(X ≤ x))
+t_cdf <- function(x, df) {
+  pt(x, df = df)
+}
+
+# Upper tail (P(X > x))
+t_upper_tail <- function(x, df) {
+  1 - pt(x, df = df)
+}
+
+# Lower tail (P(X < x))  [same as CDF]
+t_lower_tail <- function(x, df) {
+  pt(x, df = df)
+}
+
+# Quantile (inverse CDF), for a probability p
+t_quantile <- function(p, df) {
+  qt(p, df = df)
+}
+
+# Random generation of n Student-t values
+t_random <- function(n, df) {
+  rt(n, df = df)
+}
+
+
+
+```
+
+
+
+```{r}
+###########################################
+#        CHI-SQUARE DISTRIBUTION
+###########################################
+
+# PDF
+chisq_pdf <- function(x, df) {
+  dchisq(x, df = df)
+}
+
+# CDF (P(X ≤ x))
+chisq_cdf <- function(x, df) {
+  pchisq(x, df = df)
+}
+
+# Upper tail (P(X > x))
+chisq_upper_tail <- function(x, df) {
+  1 - pchisq(x, df = df)
+}
+
+# Lower tail (P(X < x))
+chisq_lower_tail <- function(x, df) {
+  pchisq(x, df = df)
+}
+
+# Quantile (inverse CDF)
+chisq_quantile <- function(p, df) {
+  qchisq(p, df = df)
+}
+
+# Random generation of n chi-square values
+chisq_random <- function(n, df) {
+  rchisq(n, df = df)
+}
+
+
+```
+
+
+
+
+

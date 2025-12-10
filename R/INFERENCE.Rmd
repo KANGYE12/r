@@ -1,0 +1,381 @@
+---
+title: "Exam02_Practice-->Inference"
+output: html_document
+date: "2025-12-09"
+---
+
+```{r}
+
+
+
+#proportion sample
+score_proportion <- function(score, ni, condition = function(x) x >= 0) {
+  if(length(score) != length(ni)) stop("score and ni must have same length")
+  
+  x <- rep(score, ni)  # expand frequencies
+  mean(condition(x))   # proportion satisfying condition
+}
+score_proportion(score = c(0,1,2,3,4,5), ni = c(10,8,12,9,7,3),
+                 condition = function(x) x >= 2)
+
+
+#Population mean
+
+population_mean <- function(x, ni) {
+  if(length(x) != length(ni)) stop("score and ni must have same length")
+  
+  c <- rep(x, ni)
+  mean(c)
+}
+
+population_mean(c(0,1,2,3,4,5), c(10,8,12,9,7,3))
+
+
+#SAMPLE VARIANCE OR POPULATION VARIANCE
+weighted_variance <- function(values, frequencies, population = FALSE) {
+  if(length(values) != length(frequencies)) stop("values and frequencies must have same length")
+  
+  x <- rep(values, frequencies)
+  
+  if(population) {
+    var(x) * length(x) / (length(x)-1)  # population-like variance (denominator n)
+  } else {
+    var(x)  # sample variance (denominator n-1)
+  }
+}
+weighted_variance(c(0,1,2,3,4,5), c(10,8,12,9,7,3), population = TRUE)
+
+```
+
+```{r}
+
+#Normal distribution when working with samples
+
+# Probability that sample mean <= a
+xbar_prob_le <- function(a, mean, sd, n) {
+  if(n <= 0) stop("Sample size must be positive")
+  if(sd <= 0) stop("Standard deviation must be positive")
+  
+  se <- sd / sqrt(n)          # standard error of the mean
+  pnorm(a, mean = mean, sd = se)  # P(X̄ ≤ a)
+}
+
+# Probability that sample mean >= a
+xbar_prob_ge <- function(a, mean, sd, n) {
+  1 - xbar_prob_le(a, mean, sd, n)
+}
+
+# Probability that sample mean is between two values
+xbar_prob_between <- function(lower, upper, mean, sd, n) {
+  if(lower > upper) stop("Lower bound must be ≤ upper bound")
+  
+  se <- sd / sqrt(n)
+  pnorm(upper, mean = mean, sd = se) - pnorm(lower, mean = mean, sd = se)
+}
+
+#Using population variance and sample N
+sample_mean_variance <- function(pop_var, n) {
+  pop_var / n
+}
+
+xbar_prob_le(6.3, mean = 6, sd = 2, n = 25) 
+```
+```{r}
+
+#Normal distribution when working with population
+
+prob_all_greater <- function(a, mean, sd, n) { #randomly select n elements from the population. It is greater
+  p_single <- 1 - pnorm(a, mean = mean, sd = sd)
+  p_single^n
+}
+
+
+prob_all_smaller <- function(a, mean, sd, n) {
+  p <- pnorm(a, mean = mean, sd = sd)
+  p^n
+}
+
+
+prob_all_greater(14, mean = 12, sd = 4, n = 5)
+```
+
+
+
+```{r}
+# Probability that the sample mean differs from population mean by at most delta
+# using Student-t when sigma unknown.
+# delta: allowed difference (>=0)
+# s: sample standard deviation
+# n: sample size
+xbar_prob_within_t <- function(delta, s, n) { #delta is the difference of units up and low
+  if (delta < 0) stop("delta must be non-negative")
+  if (s <= 0) stop("s must be positive")
+  if (n <= 1) stop("n must be > 1")
+  df <- n - 1
+  se <- s / sqrt(n)
+  upper_t <- delta / se
+  lower_t <- -upper_t
+  # probability P(lower_t <= T <= upper_t) where T ~ t_df
+  prob <- pt(upper_t, df = df) - pt(lower_t, df = df)
+  list(
+    n = n,
+    df = df,
+    s = s,
+    se = se,
+    t_bound = upper_t,
+    probability = prob
+  )
+}
+
+
+xbar_prob_within_t(delta = 8, s = 10.85, n = 16)
+```
+
+
+```{r}
+
+#Simple exercise confidence intervals large samples unknown variance
+pA <- 43 / 100
+nA <- 500
+e <- qnorm (.975) * sqrt ( pA * (1 - pA ) / nA ) ## qnorm(.975) is approximately .95
+c( pA - e , pA + e )
+
+
+pB <- 42 / 100
+nB <- 300
+e <- qnorm (.975) * sqrt ( pB * (1 - pB ) / nB )
+c( pB - e , pB + e )
+
+```
+
+```{r}
+
+#Simple exercise confidence intervals small samples unknown variance
+x <- c(2.2 ,2.66 ,2.74 ,3.41 ,2.46 ,2.96 ,3.34 ,
+       2.16 ,2.46 ,2.71 ,2.04 ,3.74 ,3.24 ,3.92 ,2.38 ,
+       2.82 ,2.2 , 2.42 ,2.82 ,2.84 ,4.22 ,3.64 ,1.77 ,
+       3.44 ,1.53)
+
+n <- length(x)
+xbar <- mean(x)
+s <- sd(x)
+SE <- s / sqrt(n)
+
+t_crit <- qt(0.975, df = n-1)
+E <- t_crit * SE
+
+# Return as a vector like c(lower, upper)
+c(xbar - E, xbar + E)
+
+#critical value for 90% CI
+#t_crit <- qt(0.95, df = n-1)
+```
+
+```{r}
+# Given values
+n <- 200          # Number of tosses
+X <- 110          # Number of heads obtained
+p_hat <- X / n    # Sample proportion
+
+# Confidence level --> 99% confidence interval
+alpha <- 0.01
+z <- qnorm(1 - alpha/2)   # critical Z value for 99% CI
+
+# Standard error
+SE <- sqrt(p_hat * (1 - p_hat) / n)
+
+# Confidence interval
+CI <- c(p_hat - z * SE, p_hat + z * SE)
+CI
+
+
+```
+
+```{r}
+# Confidence interval knowing variance
+xbar <- 160
+sigma <- 10
+n <- 144
+
+# 1) 95% CI
+z95 <- qnorm(0.975)
+SE <- sigma / sqrt(n)
+E95 <- z95 * SE
+CI95 <- c(xbar - E95, xbar + E95)
+
+# 2) 90% CI
+z90 <- qnorm(0.95)
+E90 <- z90 * SE
+CI90 <- c(xbar - E90, xbar + E90)
+
+# 4) Sample size for E = 1.2 at 95% confidence
+E_desired <- 1.2
+n_required <- ceiling( (z95 * sigma / E_desired)^2 )
+
+list(CI95 = CI95, CI90 = CI90, SampleSizeForE = n_required)
+
+```
+
+```{r}
+# General CI for single mean with automatic t/z selection
+ci_mean_auto <- function(x, sigma = NULL, alpha = 0.05, large_sample_threshold = 30) {
+  
+  # 1. Basic Statistics
+  n <- length(x)
+  mean_x <- mean(x, na.rm = TRUE) # Handle missing values safely
+  
+  # 2. Determine Standard Error and Method
+  # Case A: Sigma (Population SD) is known -> Always use Z
+  if (!is.null(sigma)) {
+    SE <- sigma / sqrt(n)
+    use_z <- TRUE
+    method_note <- "Z-distribution (Sigma known)"
+    
+  # Case B: Sigma unknown -> Check sample size
+  } else {
+    s <- sd(x, na.rm = TRUE) # Sample Standard Deviation
+    SE <- s / sqrt(n)
+    
+    # Check threshold logic
+    if (n >= large_sample_threshold) {
+      use_z <- TRUE
+      method_note <- "Z-distribution (Large sample approximation)"
+    } else {
+      use_z <- FALSE
+      method_note <- "T-distribution (Small sample)"
+    }
+  }
+  
+  # 3. Calculate Critical Value
+  if (use_z) {
+    crit_val <- qnorm(1 - alpha/2)
+  } else {
+    df <- n - 1
+    crit_val <- qt(1 - alpha/2, df)
+  }
+  
+  # 4. Compute Interval
+  CI <- c(mean_x - crit_val * SE, mean_x + crit_val * SE)
+  
+  # 5. Output Results
+  cat("------------------------------------------------\n")
+  cat(100*(1-alpha), "% Confidence Interval for the Mean\n")
+  cat("------------------------------------------------\n")
+  cat("  Interval: [", round(CI[1], 4), ", ", round(CI[2], 4), "]\n")
+  cat("  Mean:", round(mean_x, 4), "\n")
+  cat("  Method:", method_note, "\n")
+  cat("  Sample Size:", n, "\n")
+  
+  return(list(mean = mean_x, CI = CI, SE = SE, method = method_note))
+}
+
+# Sample data
+n <- 150
+X <- 27
+
+# Vector for 0/1
+x <- c(rep(1, 27), rep(0, 123)) # 27 infected and 123 good ones
+
+# 95% CI using ci_mean_auto
+ci_mean_auto(x, alpha = 0.05)
+
+
+#Another example
+# Temperatures
+before <- c(39.3, 39.7, 39.9, 40, 38.9, 39.7, 39.3)
+after  <- c(38.1, 38, 38.3, 37.9, 38.7, 38.3, 37)
+
+# Differences (Before - After)
+diff <- after - before
+
+# 90% Confidence Interval using ci_mean_auto
+ci_mean_auto(diff, alpha = 0.10)
+
+
+```
+```{r}
+
+#For normal distribution --> Large samples and direct proportion
+
+ci_proportion <- function(X, n, alpha = 0.05) {
+  if (X < 0 | X > n) stop("X must be between 0 and n")
+  if (n <= 0) stop("n must be positive")
+  if (alpha <= 0 | alpha >= 1) stop("alpha must be between 0 and 1")
+  
+  # Sample proportion
+  p_hat <- X / n
+  
+  # Critical Z value
+  z <- qnorm(1 - alpha/2)
+  
+  # Standard error
+  SE <- sqrt(p_hat * (1 - p_hat) / n)
+  
+  # Confidence interval
+  CI <- c(p_hat - z * SE, p_hat + z * SE)
+  
+  # Print results
+  cat("------------------------------------------------\n")
+  cat(100*(1-alpha), "% Confidence Interval for Proportion\n")
+  cat("------------------------------------------------\n")
+  cat("  Sample proportion:", round(p_hat, 4), "\n")
+  cat("  Interval: [", round(CI[1], 4), ",", round(CI[2], 4), "]\n")
+  cat("  Sample size:", n, "\n")
+  
+  return(list(p_hat = p_hat, CI = CI, SE = SE))
+}
+
+# 95% CI
+ci_proportion(X = 215, n = 500, alpha = 0.05)
+```
+
+```{r}
+
+# General CI for difference of means with automatic t/z selection
+ci_diff_means_auto <- function(A, B, alpha = 0.05, equal_var = TRUE, large_sample_threshold = 30) {
+  nA <- length(A)
+  nB <- length(B)
+  meanA <- mean(A)
+  meanB <- mean(B)
+  diff_mean <- meanA - meanB
+  varA <- var(A)
+  varB <- var(B)
+  
+  # Determine if we use t or z
+  use_z <- (nA >= large_sample_threshold & nB >= large_sample_threshold)
+  
+  # Standard error
+  if(equal_var) {
+    sp2 <- ((nA - 1)*varA + (nB - 1)*varB) / (nA + nB - 2)
+    SE <- sqrt(sp2 * (1/nA + 1/nB))
+    df <- nA + nB - 2
+  } else {
+    SE <- sqrt(varA/nA + varB/nB)
+    df <- (varA/nA + varB/nB)^2 / ((varA/nA)^2/(nA-1) + (varB/nB)^2/(nB-1))
+  }
+  
+  # Critical value
+  if(use_z) {
+    crit_val <- qnorm(1 - alpha/2)
+  } else {
+    crit_val <- qt(1 - alpha/2, df)
+  }
+  
+  CI <- c(diff_mean - crit_val * SE, diff_mean + crit_val * SE)
+  
+  cat(100*(1-alpha), "% Confidence interval for (meanA - meanB): [",
+      round(CI[1],3), ",", round(CI[2],3), "]\n")
+  cat("Method:", ifelse(use_z, "z-distribution (large sample)", "t-distribution (small sample)"), "\n")
+  
+  return(list(diff_mean = diff_mean, CI = CI, df = df, method = ifelse(use_z, "z", "t")))
+}
+
+A <- c(29.5, 31.3, 28.5, 29.1, 30.9)
+B <- c(29.98, 29.3, 28.42, 34.5, 32.5, 33.3)
+
+ci_diff_means_auto(A, B, alpha = 0.05, equal_var = FALSE)
+
+```
+
+
+

@@ -1,0 +1,416 @@
+---
+title: "Inference_Hypothesis"
+output: html_document
+date: "2025-12-09"
+---
+
+```{r}
+# One-sample proportion upper-tail test
+binomial_upper_tail_test <- function(n, p0, X_obs, alpha = 0.05) {
+  # p-value for P(X >= X_obs)
+  p_value <- 1 - pbinom(X_obs - 1, size = n, prob = p0)
+  
+  # Critical value (smallest X such that P(X >= X) <= alpha)
+  x <- 0:n
+  cum_probs <- 1 - pbinom(x-1, size=n, prob=p0)
+  critical_x <- min(x[cum_probs <= alpha])
+  rejection_region <- critical_x:n
+  
+  # Print comparison
+  cat("Observed X =", X_obs, "\n")
+  cat("p-value =", round(p_value,4), "\n")
+  cat("Significance level alpha =", alpha, "\n")
+  
+  if(p_value <= alpha) {
+    cat("Result: Reject H0\n")
+  } else {
+    cat("Result: Fail to reject H0\n")
+  }
+  
+  return(list(
+    p_value = p_value,
+    critical_value = critical_x,
+    rejection_region = rejection_region
+  ))
+}
+n <- 20      # number of flips
+p0 <- 0.5    # H0: fair coin
+X_obs <- 15  # observed heads
+alpha <- 0.05
+
+binomial_upper_tail_test(n, p0, X_obs, alpha)
+
+```
+
+
+
+
+```{r}
+# General Binomial Hypothesis Test Function
+binomial_test_general <- function(n, p0, X_obs, alpha = 0.05, tail = c("lower", "upper", "two.sided")) {
+  tail <- match.arg(tail)
+  
+  if(tail == "lower") {
+    # P(X <= X_obs)
+    p_value <- pbinom(X_obs, size = n, prob = p0)
+    x <- 0:n
+    cum_probs <- pbinom(x, size = n, prob = p0)
+    critical_x <- max(x[cum_probs <= alpha])
+    rejection_region <- 0:critical_x
+    
+  } else if(tail == "upper") {
+    # P(X >= X_obs)
+    p_value <- 1 - pbinom(X_obs - 1, size = n, prob = p0)
+    x <- 0:n
+    cum_probs <- 1 - pbinom(x-1, size = n, prob = p0)
+    critical_x <- min(x[cum_probs <= alpha])
+    rejection_region <- critical_x:n
+    
+  } else if(tail == "two.sided") {
+    # Two-tailed: sum probabilities more extreme than observed
+    p_value <- 2 * min(pbinom(X_obs, n, p0), 1 - pbinom(X_obs - 1, n, p0))
+    # Two-tailed rejection region (approx)
+    x <- 0:n
+    lower_crit <- max(x[pbinom(x, n, p0) <= alpha/2])
+    upper_crit <- min(x[(1 - pbinom(x-1, n, p0)) <= alpha/2])
+    critical_x <- c(lower_crit, upper_crit)
+    rejection_region <- c(0:lower_crit, upper_crit:n)
+  }
+  
+  # Print results
+  cat("Observed X =", X_obs, "\n")
+  cat("Tail type:", tail, "\n")
+  cat("p-value =", round(p_value, 4), "\n")
+  cat("Significance level alpha =", alpha, "\n")
+  
+  if(p_value <= alpha) {
+    cat("Result: Reject H0\n")
+  } else {
+    cat("Result: Fail to reject H0\n")
+  }
+  
+  return(list(
+    p_value = p_value,
+    critical_value = critical_x,
+    rejection_region = rejection_region
+  ))
+}
+binomial_test_general(n = 20, p0 = 0.5, X_obs = 15, alpha = 0.05, tail = "upper")
+
+```
+
+```{r}
+
+# General CI for difference of means with automatic t/z selection
+ci_diff_means_auto <- function(A, B, alpha = 0.05, equal_var = TRUE, large_sample_threshold = 30) {
+  nA <- length(A)
+  nB <- length(B)
+  meanA <- mean(A)
+  meanB <- mean(B)
+  diff_mean <- meanA - meanB
+  varA <- var(A)
+  varB <- var(B)
+  
+  # Determine if we use t or z
+  use_z <- (nA >= large_sample_threshold & nB >= large_sample_threshold)
+  
+  # Standard error
+  if(equal_var) {
+    sp2 <- ((nA - 1)*varA + (nB - 1)*varB) / (nA + nB - 2)
+    SE <- sqrt(sp2 * (1/nA + 1/nB))
+    df <- nA + nB - 2
+  } else {
+    SE <- sqrt(varA/nA + varB/nB)
+    df <- (varA/nA + varB/nB)^2 / ((varA/nA)^2/(nA-1) + (varB/nB)^2/(nB-1))
+  }
+  
+  # Critical value
+  if(use_z) {
+    crit_val <- qnorm(1 - alpha/2)
+  } else {
+    crit_val <- qt(1 - alpha/2, df)
+  }
+  
+  CI <- c(diff_mean - crit_val * SE, diff_mean + crit_val * SE)
+  
+  cat(100*(1-alpha), "% Confidence interval for (meanA - meanB): [",
+      round(CI[1],3), ",", round(CI[2],3), "]\n")
+  cat("Method:", ifelse(use_z, "z-distribution (large sample)", "t-distribution (small sample)"), "\n")
+  
+  return(list(diff_mean = diff_mean, CI = CI, df = df, method = ifelse(use_z, "z", "t")))
+}
+
+A <- c(29.5, 31.3, 28.5, 29.1, 30.9)
+B <- c(29.98, 29.3, 28.42, 34.5, 32.5, 33.3)
+
+ci_diff_means_auto(A, B, alpha = 0.05, equal_var = FALSE)
+
+
+
+```
+
+```{r}
+# ==========================
+# General Poisson goodness-of-fit function
+# ==========================
+poisson_gof <- function(xi, oi, alpha = 0.05) {
+  if(length(xi) != length(oi)) stop("xi and oi must have same length")
+  
+  N <- sum(oi)
+  
+  # Estimate lambda
+  # For last category "k or more", approximate with xi[length(xi)]
+  lambda_hat <- sum(xi[-length(xi)]*oi[-length(oi)] + xi[length(xi)]*oi[length(oi)])/N
+  cat("Estimated lambda =", round(lambda_hat,3), "\n")
+  
+  # Compute expected frequencies
+  k <- length(xi)
+  expected <- dpois(0:(k-2), lambda_hat)*N  # first k-1 categories
+  expected <- c(expected, N*(1 - ppois(k-2, lambda_hat)))  # last category "k or more"
+  
+  cat("Observed:", oi, "\n")
+  cat("Expected:", round(expected,2), "\n")
+  
+  # Chi-square test
+  chi2 <- sum((oi - expected)^2 / expected)
+  df <- k - 1 - 1  # k - 1 - m (m=1 for estimated lambda)
+  p_value <- 1 - pchisq(chi2, df)
+  
+  cat("Chi-square statistic =", round(chi2,3), "\n")
+  cat("Degrees of freedom =", df, "\n")
+  cat("p-value =", round(p_value,4), "\n")
+  
+  if(p_value < alpha) {
+    cat("Reject H0: Poisson distribution does not fit well\n")
+  } else {
+    cat("Fail to reject H0: Poisson distribution fits data\n")
+  }
+  
+  return(list(lambda_hat = lambda_hat,
+              observed = oi,
+              expected = expected,
+              chi2 = chi2,
+              df = df,
+              p_value = p_value))
+}
+
+# ==========================
+# Example usage
+# ==========================
+xi <- c(0,1,2,3,4,5,6)   # last category = 6 or more
+oi <- c(200, 220, 150, 68, 25, 10, 4)
+
+poisson_gof(xi, oi, alpha = 0.05)
+```
+
+
+
+
+```{r}
+# Function to test normality for grouped data
+test_normality_grouped <- function(midpoints, freq, alpha = 0.05) {
+  if(length(midpoints) != length(freq)) stop("midpoints and freq must have same length")
+  
+  N <- sum(freq)
+  
+  # Estimate mean and SD using weighted data
+  mu_hat <- sum(midpoints * freq) / N
+  sigma_hat <- sqrt(sum(freq * (midpoints - mu_hat)^2) / (N - 1))
+  
+  # Compute expected probabilities and frequencies for each interval
+  breaks <- c(0, head(midpoints, -1) + diff(midpoints)/2, tail(midpoints, 1) + diff(midpoints)[length(diff(midpoints))]/2)
+  # Extend breaks to include lower and upper ends of first and last bins
+  breaks[1] <- breaks[1] - diff(breaks)[1]/2
+  breaks[length(breaks)] <- breaks[length(breaks)] + diff(breaks)[length(breaks)-1]/2
+  
+  expected_prob <- diff(pnorm(breaks, mean = mu_hat, sd = sigma_hat))
+  expected_freq <- expected_prob * N
+  
+  # Combine intervals if expected_freq < 5 (Chi-square requirement)
+  while(any(expected_freq < 5)) {
+    idx <- which.min(expected_freq)
+    if(idx == 1) {
+      expected_freq[2] <- expected_freq[2] + expected_freq[1]
+      freq[2] <- freq[2] + freq[1]
+      expected_freq <- expected_freq[-1]
+      freq <- freq[-1]
+      breaks <- breaks[-2]
+    } else {
+      expected_freq[idx-1] <- expected_freq[idx-1] + expected_freq[idx]
+      freq[idx-1] <- freq[idx-1] + freq[idx]
+      expected_freq <- expected_freq[-idx]
+      freq <- freq[-idx]
+      breaks <- breaks[-(idx+1)]
+    }
+  }
+  
+  # Chi-square statistic
+  chi2 <- sum((freq - expected_freq)^2 / expected_freq)
+  df <- length(freq) - 1 - 2  # intervals - 1 - estimated parameters (mu, sigma)
+  p_value <- 1 - pchisq(chi2, df)
+  
+  cat("Chi-square statistic =", round(chi2,3), "\n")
+  cat("Degrees of freedom =", df, "\n")
+  cat("p-value =", round(p_value,4), "\n")
+  
+  if(p_value < alpha){
+    cat("Decision: Reject H0 - Data is NOT normal at", 100*(1-alpha), "% confidence\n")
+    return(FALSE)
+  } else {
+    cat("Decision: Fail to reject H0 - Data IS consistent with normality at", 100*(1-alpha), "% confidence\n")
+    return(TRUE)
+  }
+}
+
+# ==========================
+# Example usage
+# ==========================
+midpoints <- c(5,15,25,35,45,55,65,75,85,95)
+freq <- c(2,30,80,145,250,245,140,75,28,5)
+
+test_normality_grouped(midpoints, freq, alpha = 0.05)
+
+
+
+```
+```{r}
+# ==========================
+# General Chi-square Test of Independence Function--> we use this for categorial tables
+# ==========================
+chi_square_independence <- function(table, alpha = 0.05, simulate_p = FALSE, B = 2000) {
+  # table: a numeric matrix or data.frame of counts (rows = variable 1, cols = variable 2)
+  # alpha: significance level (default 0.05)
+  # simulate_p: if TRUE, simulate p-value for small expected counts
+  # B: number of simulations if simulate_p = TRUE
+
+  if(!is.matrix(table) & !is.data.frame(table)) stop("table must be a matrix or data.frame of counts")
+  if(any(table < 0)) stop("Counts must be non-negative")
+
+  # Perform chi-square test
+  test <- chisq.test(table, simulate.p.value = simulate_p, B = B)
+
+  # Print contingency table
+  cat("Contingency Table:\n")
+  print(table)
+  cat("\nChi-square statistic:", round(test$statistic,3), "\n")
+  cat("Degrees of freedom:", test$parameter, "\n")
+  cat("p-value:", round(test$p.value,4), "\n")
+  
+  # Decision
+  if(test$p.value < alpha) {
+    cat("Decision: Reject H0 - Variables are NOT independent (association exists)\n")
+  } else {
+    cat("Decision: Fail to reject H0 - No evidence against independence\n")
+  }
+
+  # Return full test object invisibly for further use
+  invisible(test)
+}
+# Construct the table: Rows = Rust, Columns = Scab
+rust_scab <- matrix(
+  c(198, 28, 62,
+    39, 6, 12,
+    105, 15, 35),
+  nrow = 3,
+  byrow = TRUE
+)
+rownames(rust_scab) <- c("None", "Signs", "Infected")
+colnames(rust_scab) <- c("None", "Signs", "Infected")
+
+# Test independence at 5% significance level
+chi_square_independence(rust_scab, alpha = 0.05)
+
+```
+
+```{r}
+#Possible exam exercise
+
+
+# -------------------------------
+# 1. Probability that X is within a range (normal distribution)
+# -------------------------------
+normal_range_prob <- function(lower, upper, mean, sd) {
+  p <- pnorm(upper, mean = mean, sd = sd) - pnorm(lower, mean = mean, sd = sd)
+  return(p)
+}
+
+
+# -------------------------------
+# 2. Confidence interval for sample mean (unknown variance)
+# -------------------------------
+ci_mean <- function(sum_x, sum_x2, n, alpha = 0.05) {
+  xbar <- sum_x / n
+  s2 <- (sum_x2 - n * xbar^2) / (n - 1)
+  s <- sqrt(s2)
+  df <- n - 1
+  t_crit <- qt(1 - alpha/2, df)
+  SE <- s / sqrt(n)
+  CI <- c(xbar - t_crit * SE, xbar + t_crit * SE)
+  return(list(mean = xbar, sd = s, CI = CI, df = df))
+}
+
+# -------------------------------
+# 3. One-sample t-test for mean
+# -------------------------------
+t_test_mean <- function(sum_x, sum_x2, n, mu0, alpha = 0.05) {
+  res <- ci_mean(sum_x, sum_x2, n, alpha)
+  t_stat <- (res$mean - mu0) / (res$sd / sqrt(n))
+  p_value <- 2 * pt(-abs(t_stat), df = res$df)
+  decision <- ifelse(p_value > alpha, "Fail to reject H0", "Reject H0")
+  return(list(t_stat = t_stat, p_value = p_value, decision = decision))
+}
+
+# -------------------------------
+# 4. One-sided Chi-square test for variance
+# -------------------------------
+chi2_test_variance <- function(sum_x, sum_x2, n, sigma0_sq, alpha = 0.05, side = "upper") {
+  xbar <- sum_x / n
+  s2 <- (sum_x2 - n * xbar^2) / (n - 1)
+  df <- n - 1
+  chi_stat <- (n - 1) * s2 / sigma0_sq
+  if(side == "upper") {
+    chi_crit <- qchisq(1 - alpha, df)
+    decision <- ifelse(chi_stat > chi_crit, "Reject H0", "Fail to reject H0")
+  } else {
+    chi_crit <- qchisq(alpha, df)
+    decision <- ifelse(chi_stat < chi_crit, "Reject H0", "Fail to reject H0")
+  }
+  return(list(chi_stat = chi_stat, chi_crit = chi_crit, decision = decision))
+}
+
+# ================================
+# Example: Capacitor problem
+# ================================
+
+# a) Probability that capacitor functions correctly
+mu <- 2.5
+sigma <- 0.1
+lower <- 2.384
+upper <- 2.712
+prob <- normal_range_prob(lower, upper, mu, sigma)
+cat("Percentage of capacitors functioning correctly:", round(prob*100,1), "%\n\n")
+
+# b) Sample data
+n <- 10
+sum_x <- 24
+sum_x2 <- 57.96
+
+# 95% Confidence Interval
+res_CI <- ci_mean(sum_x, sum_x2, n, alpha = 0.05)
+cat("Sample mean =", round(res_CI$mean,3), "\n")
+cat("Sample sd =", round(res_CI$sd,3), "\n")
+cat("95% CI for mean: [", round(res_CI$CI[1],3), ",", round(res_CI$CI[2],3), "]\n\n")
+
+# Test if mean = 2.5 at 90% confidence
+res_t <- t_test_mean(sum_x, sum_x2, n, mu0 = 2.5, alpha = 0.10)
+cat("t statistic =", round(res_t$t_stat,3), "\n")
+cat("p-value =", round(res_t$p_value,4), "\n")
+cat("Decision:", res_t$decision, "\n\n")
+
+# Test if variance increased at 98% confidence
+res_chi <- chi2_test_variance(sum_x, sum_x2, n, sigma0_sq = 0.1^2, alpha = 0.02, side = "upper")
+cat("Chi-square statistic =", round(res_chi$chi_stat,3), "\n")
+cat("Critical value =", round(res_chi$chi_crit,3), "\n")
+cat("Decision:", res_chi$decision, "\n")
+```
+

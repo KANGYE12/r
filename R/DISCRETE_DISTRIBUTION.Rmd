@@ -1,0 +1,193 @@
+---
+title: "Exam02_Practice --> Discrete Distribution"
+output: html_document
+date: "2025-12-09"
+---
+
+
+
+
+```{r}
+#P(X=k)=k!e−λλk
+poisson_pmf <- function(k, lambda) {
+  if (!is.numeric(lambda) || any(lambda <= 0)) stop("'lambda' must be
+positive.")
+  k <- as.numeric(k)
+  if (any(k < 0 | k %% 1 != 0)) stop("'k' must be non-negative integers.")
+  dpois(k, lambda)
+}
+
+poisson_pmf(3, lambda = 2)
+# Probability that X = 3 if X ~ Poisson(λ = 2)
+
+
+
+#Cummulative poisson distribution
+poisson_cdf <- function(q, lambda) {
+  if (!is.numeric(lambda) || any(lambda <= 0)) stop("'lambda' must be positive.")
+  q <- as.numeric(q)
+  ppois(q, lambda)
+}
+
+poisson_cdf(3, lambda = 2)
+# Probability that X ≤ 3 if X ~ Poisson(λ = 2)
+
+
+#Generate random poison numbers
+poisson_rnd <- function(n, lambda) {
+  if (!is.numeric(lambda) || any(lambda <= 0)) stop("'lambda' must be positive.")
+  if (!is.numeric(n) || length(n) != 1 || n < 0 || n %% 1 != 0) stop("'n' must be a non-negative integer.")
+  rpois(n, lambda)
+}
+
+poisson_rnd(5, lambda = 2)
+# Returns 5 random numbers from Poisson(λ = 2)
+```
+
+```{r}
+###########################################################
+# DISCRETE UNIFORM DISTRIBUTION
+# Support: a, a+1, ..., b  (integers)
+###########################################################
+
+# PMF: P(X = k) --> All values are equally likely
+discrete_uniform_pmf <- function(k, a, b) {
+  if (a > b) stop("a must be <= b")
+  if (any(k %% 1 != 0)) stop("k must be integer")
+  
+  out <- ifelse(k >= a & k <= b, 1 / (b - a + 1), 0)
+  return(out)
+}
+
+# CDF: P(X <= k)
+discrete_uniform_cdf <- function(k, a, b) {
+  if (a > b) stop("a must be <= b")
+  if (any(k %% 1 != 0)) stop("k must be integer")
+
+  # For k < a → 0
+  # For k >= b → 1
+  # Otherwise: (k - a + 1) / (b - a + 1)
+  out <- ifelse(
+    k < a, 0,
+    ifelse(k >= b, 1,
+           (k - a + 1) / (b - a + 1))
+  )
+  
+  return(out)
+}
+
+# Random Generator
+discrete_uniform_rnd <- function(n, a, b) {
+  if (a > b) stop("a must be <= b")
+  sample(a:b, size = n, replace = TRUE)
+}
+
+# Mean and Variance
+discrete_uniform_moments <- function(a, b) {
+  if (a > b) stop("a must be <= b")
+  
+  mean_val <- (a + b) / 2
+  var_val  <- ((b - a + 1)^2 - 1) / 12
+  
+  list(
+    mean = mean_val,
+    variance = var_val
+  )
+}
+```
+
+
+
+```{r}
+###########################################################
+# BERNOULLI DISTRIBUTION
+###########################################################
+bernoulli_pmf <- function(x, p) {
+  if (p < 0 || p > 1) stop("p must be in [0,1]")
+  if (!x %in% c(0,1)) stop("x must be 0 or 1")
+  dbinom(x, size = 1, prob = p)
+}
+
+bernoulli_cdf <- function(x, p) {
+  if (p < 0 || p > 1) stop("p must be in [0,1]")
+  pbinom(x, size = 1, prob = p)
+}
+
+bernoulli_rnd <- function(n, p) {
+  if (p < 0 || p > 1) stop("p must be in [0,1]")
+  rbinom(n, size = 1, prob = p)
+}
+
+bernoulli_moments <- function(p) {
+  if (p < 0 || p > 1) stop("p must be in [0,1]")
+  list(
+    mean = p,
+    variance = p * (1 - p)
+  )
+}
+```
+
+
+
+
+```{r}
+###########################################################
+# BINOMIAL DISTRIBUTION --> Flip coins exercises
+###########################################################
+binomial_pmf <- function(k, n, p) {
+  dbinom(k, size = n, prob = p)
+}
+
+binomial_cdf <- function(k, n, p) {
+  pbinom(k, size = n, prob = p)
+}
+
+binomial_rnd <- function(n_samples, n, p) {
+  rbinom(n_samples, size = n, prob = p)
+}
+
+binomial_moments <- function(n, p) {
+  list(
+    mean = n * p,
+    variance = n * p * (1 - p)
+  )
+}
+
+binomial_pmf(3, 10, 0.17)
+binomial_cdf(4, 10, 0.7)
+```
+
+
+
+
+
+```{r}
+###########################################################
+# GEOMETRIC DISTRIBUTION  (number of trials UNTIL 1st success)
+###########################################################
+geometric_pmf <- function(k, p) {
+  dgeom(k, prob = p)
+}
+
+geometric_cdf <- function(k, p) {
+  pgeom(k, prob = p)
+}
+
+geometric_rnd <- function(n, p) {
+  rgeom(n, prob = p)
+}
+
+geometric_moments <- function(p) {
+  list(
+    mean = (1 - p) / p,
+    variance = (1 - p) / p^2
+  )
+}
+
+geometric_pmf(6, 3/75)
+```
+
+
+
+
+
