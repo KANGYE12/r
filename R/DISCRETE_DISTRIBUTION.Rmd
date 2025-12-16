@@ -42,6 +42,8 @@ poisson_rnd <- function(n, lambda) {
 
 poisson_rnd(5, lambda = 2)
 # Returns 5 random numbers from Poisson(λ = 2)
+
+poisson_cdf(3, 2.78)
 ```
 
 ```{r}
@@ -155,6 +157,15 @@ binomial_moments <- function(n, p) {
 
 binomial_pmf(3, 10, 0.17)
 binomial_cdf(4, 10, 0.7)
+
+binomial_success_rate <- function(n, k) {
+  factorial(n) / (factorial(k) * factorial(n - k)) 
+}
+
+binomial_success_rate(17, 3)
+
+
+
 ```
 
 
